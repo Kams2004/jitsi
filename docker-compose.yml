@@ -4,15 +4,18 @@ services:
         image: jitsi/web:${JITSI_IMAGE_VERSION:-stable}
         restart: ${RESTART_POLICY:-unless-stopped}
         ports:
-            # This image's nginx now runs as a non-root user and can't bind
-            # to privileged ports, so it listens internally on 8000/8443
-            # instead of 80/443 (confirmed via `ss -tlnp` inside the
-            # container - upstream jitsi/web:unstable changed this;
-            # docker-compose.yml hadn't caught up, causing host nginx to
-            # get connection resets from docker-proxy with nothing on the
-            # container side of the mapping to answer).
-            - '${HTTP_PORT}:8000'
-            - '${HTTPS_PORT}:8443'
+            # jitsi/web:unstable's nginx (at the time this was debugged) ran
+            # as a non-root user and listened on 8000/8443 instead of 80/443,
+            # confirmed via `ss -tlnp` inside the container. Since switching
+            # the default image channel to :stable (see JITSI_IMAGE_VERSION
+            # above - :unstable had an unrelated client-side bug breaking
+            # video/screen-share), nginx there runs as root on the standard
+            # 80/443 again (also confirmed via `ss -tlnp`), so the mapping
+            # reverts to match. If you ever pin JITSI_IMAGE_VERSION back to
+            # unstable, check `ss -tlnp` inside the web container first -
+            # this has changed between builds before.
+            - '${HTTP_PORT}:80'
+            - '${HTTPS_PORT}:443'
         volumes:
             - ${CONFIG}/web:/config:Z
             - ${CONFIG}/web/crontabs:/var/spool/cron/crontabs:Z
