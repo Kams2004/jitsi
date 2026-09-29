@@ -17,15 +17,27 @@
 set -e
 cd "$(dirname "$0")"
 
+# This server has the legacy standalone `docker-compose` binary, not the
+# newer `docker compose` CLI plugin (same as this repo's own Makefile) —
+# detect whichever is actually present instead of assuming one.
+if docker compose version >/dev/null 2>&1; then
+    DC=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+    DC=(docker-compose)
+else
+    echo "Neither 'docker compose' nor 'docker-compose' is available." >&2
+    exit 1
+fi
+
 echo "==> Fetching latest changes..."
 git fetch origin
 git pull --ff-only origin main
 
 echo "==> Pulling updated images (if any)..."
-docker compose pull
+"${DC[@]}" pull
 
 echo "==> Recreating changed containers..."
-docker compose up -d
+"${DC[@]}" up -d
 
 echo "==> Done. Current state:"
-docker compose ps
+"${DC[@]}" ps
