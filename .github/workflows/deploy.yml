@@ -1,0 +1,38 @@
+name: Deploy to production
+
+# Pushes to main only update this GitHub repo — nothing on the server pulls
+# automatically otherwise. This SSHes in and applies whatever changed in
+# tracked files (docker-compose.yml, web/rootfs/*, etc.).
+#
+# Does NOT touch .env — that file is gitignored on purpose (it holds live
+# secrets) and is never part of this repo, so settings that live there
+# (e.g. DYNAMIC_BRANDING_URL) still need to be set by hand on the server.
+#
+# --ff-only means this fails loudly instead of discarding anything if the
+# server has local commits/edits git can't fast-forward past. That's
+# intentional: safe-by-default, at the cost of needing a manual fix on the
+# server (commit, stash, or reset) when it happens.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH and redeploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_SSH_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd ~/jitsi-docker
+            git fetch origin
+            git pull --ff-only origin main
+            docker compose pull
+            docker compose up -d
